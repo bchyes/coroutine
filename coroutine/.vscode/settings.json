@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "setjmp.h": "c",
+        "stdint.h": "c",
+        "stdc++.h": "c",
+        "stdio.h": "c",
+        "stdlib.h": "c"
+    },
+    //"C_Cpp.intelliSenseEngine": "Tag Parser",  //  需要添加的
+
+}
