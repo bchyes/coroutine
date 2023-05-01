@@ -7,11 +7,11 @@ struct coroutine main_coroutine[NESTED_NUM];
 int now_nest;
 int nest_id[NESTED_NUM];
 struct coroutine *now_coroutine;
-
 struct coroutine* context[MAX_COROUTINE];
 int retval[MAX_COROUTINE];
 int fin_co[MAX_COROUTINE];
 int now_co_id = 0;
+struct coroutine* test;
 
 void refresh_context(struct coroutine *buf){
     // int same = 0;
@@ -30,12 +30,14 @@ void refresh_context(struct coroutine *buf){
     } else {
         context[buf -> id + 1] = buf;
     }
+    printf("modify id %d in context\n",buf -> id + 1);
 }
 void co_yield(){
     assert(now_coroutine != NULL);
     int res = setjmp(now_coroutine -> context);
     refresh_context(now_coroutine);
     //if (now_coroutine -> id == 10) printf("-");
+    printf("%d ?\n",now_co_id);
     if (res == 0){
         int rad;
         while (1){
@@ -43,6 +45,14 @@ void co_yield(){
             if (!fin_co[rad]) break;
         }
         now_coroutine = context[rad];
+        printf("%d\n",rad);
+        if (rad == 26) {
+            if (now_coroutine->context == test->context) printf("same\n");
+            else printf("different\n");
+        }
+        if (rad == 26){
+            now_coroutine = context[26];
+        }
         longjmp(now_coroutine->context,1);
     }
 }
@@ -96,7 +106,7 @@ void exit_(){
     //printf("%d\n",now_coroutine -> id + 1);
     retval[now_coroutine -> id + 1] = retval_;
     now_coroutine -> status = FINISHED;
-    //printf("come to this area2\n");
+    printf("come to this area2\n");
     while(1){
         co_yield();
         //printf("come to this area3\n");
@@ -104,13 +114,17 @@ void exit_(){
     //printf("come to this area3\n");
 }
 int co_start(int (*routine)(void)){
-    //printf("%d\n",now_co_id);
+    printf("%d\n",now_co_id - 1);
     struct coroutine *cur = (struct coroutine*) malloc(sizeof (main_coroutine));
     cur -> func = routine;
     cur -> status = RUNNING;
     void *now = (void *)(alignment16((uintptr_t) cur->stack + STACK_SIZE));
     //printf("nest:%d\n",now_nest);
-    main_coroutine[now_nest].id = -1;
+    if (!now_nest) {
+        main_coroutine[now_nest].id = -1;
+    } else {
+        main_coroutine[now_nest].id = nest_id[now_nest - 1];
+    }
     now_nest++;
     int flag_co = 0;
     if (!now_co_id)
@@ -118,6 +132,7 @@ int co_start(int (*routine)(void)){
     else 
         nest_id[now_nest - 1] = now_co_id - 1;
     int res = setjmp(main_coroutine[now_nest - 1].context);    
+    printf("SetJmp %d id and res = %d and now_nest = %d\n",main_coroutine[now_nest - 1].id, res,now_nest);
     while (1){
         refresh_context(&(main_coroutine[now_nest - 1]));
         //printf("res:%d\n",res);
@@ -142,12 +157,18 @@ int co_start(int (*routine)(void)){
     // }
     //printf("%d\n",now_co_id);
     //int ret_id;
+    for (int i=0;i<now_nest;i++){
+        printf("%d? ",nest_id[i]);
+    }
+    printf("\n");
     if (!flag_co){
         cur -> id = now_co_id - 1;
         //ret_id = cur -> id;
         now_coroutine = cur;
         refresh_context(now_coroutine);
-        //printf("come to this area1\n");
+        printf("come to this area1 and cur->id is %d\n",cur->id);
+        //printf("%s\n",context[cur->id + 1]->context);
+        if (cur -> id + 1 == 26) test = (context[cur -> id + 1]);
         asm volatile(
             "movq %0, %%rsp;"
             "pushq %1;"
@@ -158,6 +179,6 @@ int co_start(int (*routine)(void)){
         );
     }
     //printf("come to this area4\n");
-    //printf("%d\n",nest_id[now_nest]);
+    printf("return nest id %d and nest = %d\n",nest_id[now_nest],now_nest);
     return nest_id[now_nest];
 }

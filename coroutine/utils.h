@@ -1,9 +1,11 @@
-#ifndef UTILS_H
-#define UTILS_H
+#include <assert.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
 
-void fail(const char* message, const char* function, int line);
+static void fail(const char* message, const char* function, int line){
+    printf("[x] Test failed at %s: %d: %s\n", function, line, message);
+    exit(-1);
+}
 
-#endif
+#define assert_msg(cond, fmt, ...) assert((cond) || !fprintf(stderr, (fmt), ##__VA_ARGS__))
