@@ -18,6 +18,7 @@ struct coroutine{
     int id;
     int (*func)(void);
     int status;
+    int thread; // to note the location in array
     jmp_buf context;
     uint8_t stack[STACK_SIZE];
 };

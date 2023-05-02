@@ -9,14 +9,19 @@
 cid_t getid_val = -1;
 
 int test_costart(void){
-    printf("Hello World!\n");
+    printf("Hello World!!\n");
     return 100;
 }
 
 int nested_costart(void){
     cid_t nested = co_start(test_costart);
+    printf("nested = %lld\n",nested);
+    debug();
+    printf("come to this area3\n");
     if(nested < 0) fail("Nested creation failed", __func__, __LINE__);
+    printf("come to this area 3.5\n");
     co_wait(nested);
+    printf("come to this area4\n");
     return 200;
 }
 
@@ -120,7 +125,9 @@ int main(){
         if(coroutine[i] != i) fail("Coroutine ID not equal", __func__, __LINE__);
     }
     // test wait: not necessary if 1-N, think why
+    printf("come to this area1\n");
     co_waitall();
+    printf("come to this area2\n");
     // test get return value
     for(int i = 0; i < 10; ++i) {
         if(co_getret(coroutine[i]) != 100) fail("Coroutine return value failed", __func__, __LINE__);
