@@ -9,19 +9,20 @@
 cid_t getid_val = -1;
 
 int test_costart(void){
-    printf("Hello World!!\n");
+    printf("Hello World!\n");
     return 100;
 }
 
 int nested_costart(void){
+    //printf("?!\n");
     cid_t nested = co_start(test_costart);
-    printf("nested = %lld\n",nested);
-    debug();
-    printf("come to this area3\n");
+    //printf("nested = %lld\n",nested);
+    //debug();
+    //printf("come to this area3\n");
     if(nested < 0) fail("Nested creation failed", __func__, __LINE__);
-    printf("come to this area 3.5\n");
+    //printf("come to this area 3.5\n");
     co_wait(nested);
-    printf("come to this area4\n");
+    //printf("come to this area4\n");
     return 200;
 }
 
@@ -29,14 +30,14 @@ int test_yield1(void){
     printf("Coroutine #1 before yield.\n");
     co_yield();
     printf("Coroutine #1 after yield.\n");
-    return 0;
+    return 10;
 }
 
 int test_yield2(void){
     printf("Coroutine #2 before yield.\n");
     co_yield();
     printf("Coroutine #2 after yield.\n");
-    return 0;
+    return 10;
 }
 
 int test_dummy(void){
@@ -133,17 +134,25 @@ int main(){
         if(co_getret(coroutine[i]) != 100) fail("Coroutine return value failed", __func__, __LINE__);
     }
     // test nested creation
+    //printf("?\n");
     coroutine[0] = co_start(nested_costart);
-    printf("nested id = %lld",coroutine[0]);
+    //printf("nested id = %lld\n",coroutine[0]);
+    //printf("??\n");
     if(coroutine[0] != 10) fail("Nested coroutine ID not equal", __func__, __LINE__);
+    //printf("???\n");
+    //printf("co_getret = %d\n",co_getret(coroutine[0]));
     if(co_getret(coroutine[0]) != 200) fail("Nested coroutine return value failed", __func__, __LINE__);
+    //printf("????\n");
     // test nested and get status
     for(int i = 0; i < 12; ++i) if(co_status(i) != FINISHED) fail("Coroutine failed at status error", __func__, __LINE__);
     // test yield and get status
     coroutine[0] = co_start(test_yield1);
     printf("Main: after co_start\n");
     coroutine[1] = co_start(test_yield2);
-    for(int i = 0; i < 2; ++i) while(co_status(coroutine[i]) != FINISHED) co_yield();
+    //debug();
+    //printf("???\n");
+    for(int i = 0; i < 2; ++i) while(co_status(coroutine[i]) != FINISHED) {co_yield();/*  debug(); */}
+    //printf("????\n");
     printf("Main: after 2 coroutine yields.\n");
     // test getid
     for(int i = 0; i < 10; ++i) coroutine[i] = co_start(test_dummy);
@@ -154,7 +163,7 @@ int main(){
     if(coroutine[0] != co_getret(getid_val)) fail("Get ID differs from internal return value", __func__, __LINE__);
     printf("Main: test getid finished.\n");
     void *ptr;
-    test_multithread_thread(ptr);
+    test_multithread();
     test_multithread_timer();
     printf("Finish running.\n");
     return 0;

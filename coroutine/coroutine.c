@@ -11,19 +11,21 @@ long main_context_thread[MAX_PTHREAD]; //pthread_self()
 int now_main_context[MAX_PTHREAD]; //to know whether in main
 int return_main_co_id[MAX_PTHREAD];//co_id return to main.c
 int return_co_id[MAX_COROUTINE];//co_id return to main.c
-//int son[MAX_COROUTINE];
-//int father[MAX_COROUTINE];
-//int pthread_son[MAX_PTHREAD];
-//int pthread_father[MAX_COROUTINE];
 int retval[MAX_COROUTINE];
 int fin_co[MAX_COROUTINE];
 int now_co_id = 0;
 int now_main_co_id = 0;
 
 void refresh_main_context(struct coroutine *buf){
+    if (buf -> id == 0){
+        //printf("modify main 0:\n");
+    }
     main_context[buf -> id] = buf;
 }
 void refresh_context(struct coroutine *buf){
+    if (buf -> id == 0){
+        //printf("modify 0:\n");
+    }
     if (buf -> id == now_co_id){
         context[now_co_id++] = buf;
     } else {
@@ -32,8 +34,26 @@ void refresh_context(struct coroutine *buf){
 }
 void co_yield(){
     assert(now_coroutine != NULL);
+    //printf("coroutine id = %d\n",now_coroutine -> id);
+    //printf("coroutine main_or_not = %d\n",now_coroutine -> main_or_not);
+    //debug();
+    int origin_main = 0;
+    int i;
+    for (i = 0;i < now_main_co_id;i++){
+        if (main_context_thread[i] == pthread_self()) break;
+    }
+    if (now_coroutine -> main_or_not){
+        if (!now_main_context[i]){
+            now_main_context[i] = 1; 
+            origin_main = 1;
+        }
+    }
     int res = setjmp(now_coroutine -> context);
-    refresh_context(now_coroutine);
+    if (!(now_coroutine -> main_or_not)){
+        refresh_context(now_coroutine);
+    } else {
+        refresh_main_context(now_coroutine);
+    }
     //debug();
     if (res == 0){
         int rad;
@@ -56,6 +76,9 @@ void co_yield(){
         //printf("longjmp:%d\n",now_coroutine -> id);
         longjmp(now_coroutine->context,1);
     }
+    if (origin_main) {
+        now_main_context[i] = 0; 
+    }
 }
 int co_getid(){
     return now_coroutine -> id;
@@ -64,7 +87,15 @@ int co_status(int cid){
     return context[cid] -> status;
 }
 int co_getret(int cid){
-    if (context[cid] -> status != FINISHED) co_yield();
+    //printf("getret : cid %d\n",cid);
+    //printf("getret : now_cid %d\n",now_coroutine -> id);
+    /* int i;
+    for (i = 0;i < now_main_co_id;i++){
+        if (main_context_thread[i] == pthread_self()) break;
+    }
+    now_main_context[i] = 1; */ //need to do this in co_yield
+    while (context[cid] -> status != FINISHED) co_yield(); //need while but not if !!
+    //now_main_context[i] = 0;
     return retval[cid];
 }
 void co_waitall(){
@@ -91,16 +122,17 @@ void exit_(){
         : "%eax"
     );
     retval[now_coroutine -> id] = retval_;
+    fin_co[now_coroutine -> id] = 1;
     now_coroutine -> status = FINISHED;
-    printf("come to this area exit\n");
+    //printf("come to this area exit\n");
     while(1){
         co_yield();
     }
 }
 int co_start(int (*routine)(void)){
     struct coroutine *cur = (struct coroutine*) malloc(sizeof (struct coroutine));
-    struct coroutine set_coroutine; //need local,else we will modify main_context?
-    if (now_main_co_id) printf("\nmain co_id:%d\n",main_context[0] -> id);
+    struct coroutine *set_coroutine = (struct coroutine*) malloc(sizeof (struct coroutine)); //need local,else we will modify main_context?
+    //if (now_main_co_id) printf("\nmain co_id:%d\n",main_context[0] -> id);
     cur -> func = routine;
     cur -> status = RUNNING;
     void *now = (void *)(alignment16((uintptr_t) cur->stack + STACK_SIZE));
@@ -115,43 +147,39 @@ int co_start(int (*routine)(void)){
         main_or_not = 1;
         now_main_context[now_main_co_id - 1] = 1;
         return_main_co_id[now_main_co_id - 1] = now_co_id;
-        set_coroutine.id = now_main_co_id - 1;
-        //pthread_son[now_main_co_id - 1] = now_co_id;
-        //pthread_father[now_co_id] = now_main_co_id - 1;
-        //father[now_co_id] = -1;
-        //son[now_co_id] = -1;
+        set_coroutine -> id = now_main_co_id - 1;
         cur -> id = now_co_id;
-        res = setjmp(set_coroutine.context);
-        refresh_main_context(&(set_coroutine));
+        set_coroutine -> main_or_not = 1;
+        //debug();
+        res = setjmp(set_coroutine -> context);
+        refresh_main_context(set_coroutine);
     } else if (!now_main_context[i]){
         main_or_not = 1;
         now_main_context[i] = 1;
         return_main_co_id[i] = now_co_id;
-        set_coroutine.id = i;
-        //pthread_son[i] = now_co_id;
-        //pthread_father[now_co_id] = i;
-        //father[i] = -1;
-        //son[i] = -1;
+        set_coroutine -> id = i;
+        set_coroutine -> main_or_not = 1;
         cur -> id = now_co_id;
-        printf("now_co_id in above = %d\n",now_co_id);
-        debug();
-        res = setjmp(set_coroutine.context);
-        refresh_main_context(&(set_coroutine));
+        //printf("now_co_id in above = %d\n",now_co_id);
         //debug();
-        printf("\nmain co_id:%d\n",main_context[0] -> id);
+        res = setjmp(set_coroutine -> context);
+        refresh_main_context(set_coroutine);
+        //debug();
+        //printf("\nmain co_id:%d\n",main_context[0] -> id);
     } else {
-        printf("now_co_id = %d\n",now_co_id);
-        if (now_main_co_id) printf("\nmain co_id:%d\n",main_context[0] -> id);
-        set_coroutine.thread = i;
-        //if (father[now_co_id]) {}
-        set_coroutine.id = now_coroutine -> id;
-        if (now_main_co_id) printf("\nmain co_id1:%d\n",main_context[0] -> id);
+        //printf("now_co_id = %d\n",now_co_id);
+        //if (now_main_co_id) printf("\nmain co_id:%d\n",main_context[0] -> id);
+        set_coroutine -> thread = i;
+        set_coroutine -> id = now_coroutine -> id;
+        set_coroutine -> main_or_not = 0;
+        //if (now_main_co_id) printf("\nmain co_id1:%d\n",main_context[0] -> id);
         cur -> id = now_co_id;
-        if (now_main_co_id) printf("\nmain co_id2:%d\n",main_context[0] -> id);
-        return_co_id[set_coroutine.id] = now_co_id;
-        debug();
-        res = setjmp(set_coroutine.context);
-        refresh_context(&(set_coroutine));
+        //if (now_main_co_id) printf("\nmain co_id2:%d\n",main_context[0] -> id);
+        //printf("now_coroutine = %d\n",set_coroutine -> id);
+        return_co_id[set_coroutine -> id] = now_co_id;
+        //debug();
+        res = setjmp(set_coroutine -> context);
+        refresh_context(set_coroutine);
     }
     if (res == 0){
         now_coroutine = cur;
@@ -202,6 +230,16 @@ void debug(){
     printf("main co_id:");
     for (int i = 0;i < now_main_co_id;i++){
         printf("%d ",main_context[i] -> id);
+    }
+    printf("\n");
+    printf("ret val:");
+    for (int i = 0;i < now_co_id;i++){
+        printf("%d ",retval[i]);
+    }
+    printf("\n");
+    printf("finished:");
+    for (int i = 0;i < now_co_id;i++){
+        printf("%d ",context[i] -> status);
     }
     printf("\n");
     printf("\n");
