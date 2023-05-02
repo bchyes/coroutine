@@ -58,17 +58,17 @@ void co_yield(){
     if (res == 0){
         int rad;
         while (1){
-            rad = (rand()) % (now_co_id + now_main_co_id);
-            if (rad < now_main_co_id){
-                if (now_main_context[rad]){
-                    now_coroutine = main_context[rad];
+            rad = (rand()) % (now_co_id + 1);
+            if (!rad){
+                if (now_main_context[i]){
+                    now_coroutine = main_context[i];
                     //printf("longjmp main:%d\n",now_coroutine -> id);
                     //printf("now_main_co_id:%d\n",now_main_co_id);
                     break;
                 }
             } else {
-                if (!fin_co[rad - now_main_co_id]) {
-                    now_coroutine = context[rad - now_main_co_id];
+                if (!fin_co[rad - 1] && i == context[rad - 1] -> thread) {
+                    now_coroutine = context[rad - 1];
                     break;
                 }
             }
@@ -81,9 +81,12 @@ void co_yield(){
     }
 }
 int co_getid(){
+    //printf("getid = %d\n",now_coroutine -> id);
     return now_coroutine -> id;
 }
 int co_status(int cid){
+    //printf("status = %d\n",context[cid] -> status);
+    //debug();
     return context[cid] -> status;
 }
 int co_getret(int cid){
@@ -172,6 +175,7 @@ int co_start(int (*routine)(void)){
         set_coroutine -> thread = i;
         set_coroutine -> id = now_coroutine -> id;
         set_coroutine -> main_or_not = 0;
+        set_coroutine -> status = RUNNING; //!
         //if (now_main_co_id) printf("\nmain co_id1:%d\n",main_context[0] -> id);
         cur -> id = now_co_id;
         //if (now_main_co_id) printf("\nmain co_id2:%d\n",main_context[0] -> id);

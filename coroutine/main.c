@@ -30,14 +30,14 @@ int test_yield1(void){
     printf("Coroutine #1 before yield.\n");
     co_yield();
     printf("Coroutine #1 after yield.\n");
-    return 10;
+    return 0;
 }
 
 int test_yield2(void){
     printf("Coroutine #2 before yield.\n");
     co_yield();
     printf("Coroutine #2 after yield.\n");
-    return 10;
+    return 0;
 }
 
 int test_dummy(void){
@@ -62,16 +62,23 @@ int test_multithread_coroutine() {
     const int CNT = 10;
     cid_t coroutine[CNT];
     for (int i = 0; i < CNT; ++i) {
+        //debug();
         coroutine[i] = co_start(test_multithread_coroutine_inner);
-        printf("come to this area multi\n");
+        //debug();
+        //printf("come to this area multi\n");
         co_yield();
+        //printf("come to this area multi2\n");
         if (i > 1) {
             co_wait(coroutine[i - 1]);
             assert(co_status(coroutine[i - 1]) == FINISHED);
         }
+        //printf("come to this area multi3\n");
         co_yield();
+        //printf("come to this area multi3.3\n");
         assert(co_status(co_getid()) == RUNNING);
+        //printf("come to this area multi3.6\n");
         co_yield();
+        //printf("come to this area multi4\n");
     }
     co_wait(coroutine[CNT - 1]);
     assert(co_status(coroutine[CNT - 1]) == FINISHED);
