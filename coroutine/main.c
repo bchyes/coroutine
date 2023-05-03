@@ -14,15 +14,9 @@ int test_costart(void){
 }
 
 int nested_costart(void){
-    //printf("?!\n");
     cid_t nested = co_start(test_costart);
-    //printf("nested = %lld\n",nested);
-    //debug();
-    //printf("come to this area3\n");
     if(nested < 0) fail("Nested creation failed", __func__, __LINE__);
-    //printf("come to this area 3.5\n");
     co_wait(nested);
-    //printf("come to this area4\n");
     return 200;
 }
 
@@ -53,65 +47,46 @@ int test_getid(void){
 _Atomic int total_coroutine_count = 0;
 
 int test_multithread_coroutine_inner() {
-    printf("Running inner: %d, thread: %ld\n", co_getid(), pthread_self());
-    //debug_now_coroutine();
     total_coroutine_count++;
     return 1;
 }
 
 int test_multithread_coroutine() {
     printf("Running: %d, thread: %ld\n", co_getid(), pthread_self());
+    //printf("??\n");
+    debug();
+    //sleep(0.01);
     const int CNT = 10;
     cid_t coroutine[CNT];
     for (int i = 0; i < CNT; ++i) {
-        //debug();
         coroutine[i] = co_start(test_multithread_coroutine_inner);
-        //debug();
-        //printf("come to this area multi\n");
         co_yield();
-        //printf("come to this area multi2\n");
         if (i > 1) {
-            /* if (co_status(coroutine[i - 1]) != FINISHED) {
-                debug();
-                printf("coroutine :%lld\n",coroutine[i - 1]);
-                debug_spc(coroutine[i - 1]);
-            } */
             co_wait(coroutine[i - 1]);
-            /* if (co_status(coroutine[i - 1]) != FINISHED) {
-                debug();
-                printf("coroutine :%lld\n",coroutine[i - 1]);
-                debug_spc(coroutine[i - 1]);
-            } */
             assert(co_status(coroutine[i - 1]) == FINISHED);
         }
-        //printf("come to this area multi3\n");
         co_yield();
-        //printf("come to this area multi3.3\n");
         assert(co_status(co_getid()) == RUNNING);
-        //printf("come to this area multi3.6\n");
         co_yield();
-        //printf("come to this area multi4\n");
     }
     co_wait(coroutine[CNT - 1]);
     assert(co_status(coroutine[CNT - 1]) == FINISHED);
-    printf("Coroutine finished: %d\n", co_getid());
+    //printf("Coroutine finished: %d\n", co_getid());
     return 1;
 }
 
 void* test_multithread_thread(void *ptr) {
-    printf("Thread: %ld\n", pthread_self());
+    // printf("Thread: %ld\n", pthread_self());
     const int CNT = 20;
     cid_t coroutine[CNT];
     for (int i = 0; i < CNT; ++i) {
         coroutine[i] = co_start(test_multithread_coroutine);
     }
     for (int i = 0; i < CNT; ++i) {
-        //printf("Coroutine finished? :%lld\n",coroutine[i]);
         assert(co_getret(coroutine[i]) == 1);
-        //printf("Coroutine getret :%lld\n",coroutine[i]);
         assert(co_status(coroutine[i]) == FINISHED);
     }
-    printf("Thread finished: %ld\n", pthread_self());
+    // printf("Thread finished: %ld\n", pthread_self());
 }
 
 int test_multithread() {
@@ -125,8 +100,6 @@ int test_multithread() {
     for (int i = 0; i < CNT; ++i) {
         pthread_join(threads[i], NULL);
     }
-    //debug();
-    printf("\n total_count :%d\n",total_coroutine_count);
     assert(total_coroutine_count == 10000);
     return 0;
 }
@@ -149,33 +122,22 @@ int main(){
         if(coroutine[i] != i) fail("Coroutine ID not equal", __func__, __LINE__);
     }
     // test wait: not necessary if 1-N, think why
-    //printf("come to this area1\n");
     co_waitall();
-    //printf("come to this area2\n");
     // test get return value
     for(int i = 0; i < 10; ++i) {
         if(co_getret(coroutine[i]) != 100) fail("Coroutine return value failed", __func__, __LINE__);
     }
     // test nested creation
-    //printf("?\n");
     coroutine[0] = co_start(nested_costart);
-    //printf("nested id = %lld\n",coroutine[0]);
-    //printf("??\n");
     if(coroutine[0] != 10) fail("Nested coroutine ID not equal", __func__, __LINE__);
-    //printf("???\n");
-    //printf("co_getret = %d\n",co_getret(coroutine[0]));
     if(co_getret(coroutine[0]) != 200) fail("Nested coroutine return value failed", __func__, __LINE__);
-    //printf("????\n");
     // test nested and get status
     for(int i = 0; i < 12; ++i) if(co_status(i) != FINISHED) fail("Coroutine failed at status error", __func__, __LINE__);
     // test yield and get status
     coroutine[0] = co_start(test_yield1);
     printf("Main: after co_start\n");
     coroutine[1] = co_start(test_yield2);
-    //debug();
-    //printf("???\n");
-    for(int i = 0; i < 2; ++i) while(co_status(coroutine[i]) != FINISHED) {co_yield();/*  debug(); */}
-    //printf("????\n");
+    for(int i = 0; i < 2; ++i) while(co_status(coroutine[i]) != FINISHED) co_yield();
     printf("Main: after 2 coroutine yields.\n");
     // test getid
     for(int i = 0; i < 10; ++i) coroutine[i] = co_start(test_dummy);
@@ -185,10 +147,8 @@ int main(){
     if(coroutine[0] != getid_val) fail("Get ID differs from internal getid", __func__, __LINE__);
     if(coroutine[0] != co_getret(getid_val)) fail("Get ID differs from internal return value", __func__, __LINE__);
     printf("Main: test getid finished.\n");
-    void *ptr;
     test_multithread();
-    //debug();
-    //test_multithread_timer();
+    test_multithread_timer();
     printf("Finish running.\n");
     return 0;
 }
