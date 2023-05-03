@@ -70,8 +70,6 @@ int co_getid(){
     for (i = 0;i < now_main_co_id;i++){
         if (main_context_thread[i] == pthread_self()) break;
     }
-    /* printf("thread %d and cogetid %d\n",i,now_coroutine[i] -> id);
-    debug_now_coroutine(); */
     return now_coroutine[i] -> id;
 }
 int co_status(int cid){
@@ -111,21 +109,19 @@ void exit_(){
     retval[now_coroutine[i] -> id] = retval_;
     fin_co[now_coroutine[i] -> id] = 1;
     now_coroutine[i] -> status = FINISHED;
-    /* printf("exit??? %d\n",now_coroutine[i] -> id);
-    debug();
-    printf("exit????? %d\n",now_coroutine[i] -> id); */
     while(1){
         co_yield();
     }
 }
 int co_start(int (*routine)(void)){
-    //printf("%ld\n",pthread_self());
     struct coroutine *cur = (struct coroutine*) malloc(sizeof (struct coroutine));
     struct coroutine *set_coroutine = (struct coroutine*) malloc(sizeof (struct coroutine)); //need local,else we will modify main_context?
     cur -> func = routine;
     cur -> status = RUNNING;
     void *now = (void *)(alignment16((uintptr_t) cur->stack + STACK_SIZE));
-    pthread_mutex_lock(&mutex);//lock need to locate before else it may i != now_main_co_id?(use the before now_main_co_id)
+    pthread_mutex_lock(&mutex);//lock need to locate before "if" but not just behine if in every branch else it may i != now_main_co_id?(use the before now_main_co_id)
+    /* need to put before we choose the thread "i" else we choose wrong "i"
+    (A example:thread 1 & 2 simultaneously come but now_main_co_id == 1, so we will get i = 1 for two thread, so thread 2 finally is wrong but we need to initialize a new "i" which means now_main_co_id++) */
     int i;
     int main_or_not = 0;
     int res;
@@ -133,9 +129,6 @@ int co_start(int (*routine)(void)){
         if (main_context_thread[i] == pthread_self()) break;
     }
     if (i == now_main_co_id){
-        /* printf("i1:%d\n",i);
-        printf("now_main_co_id :%d\n",now_main_co_id); */
-        //assert(i == now_main_co_id);
         main_context_thread[now_main_co_id] = pthread_self();
         now_main_co_id++;
         main_or_not = 1;
@@ -148,20 +141,10 @@ int co_start(int (*routine)(void)){
         set_coroutine -> main_or_not = 1;
         now_coroutine[i] = cur;
         refresh_context(now_coroutine[i]);
-        /* if (now_co_id > 35){
-            for (int i=25;i<35;i++){
-                printf("i :%d,thread: %d,return_co_id :%d,finished :%d\n",i,context[i] -> thread,return_co_id[i],fin_co[i]);
-            }
-        }
-        printf("now_id %d,now_thread:%d\n",cur -> id,context[cur->id]->thread);
-        printf("cur -> thread :%d\n",cur -> thread);
-        printf("now_main_co_id :%d\n",now_main_co_id); */
         pthread_mutex_unlock(&mutex);
         res = setjmp(set_coroutine -> context);
-        //printf("now_id %d,res:%d\n",cur -> id,res);
         refresh_main_context(set_coroutine);
     } else if (!now_main_context[i]){
-        //pthread_mutex_lock(&mutex);
         main_or_not = 1;
         now_main_context[i] = 1;
         return_main_co_id[i] = now_co_id;
@@ -172,15 +155,10 @@ int co_start(int (*routine)(void)){
         cur -> thread = i;
         now_coroutine[i] = cur;
         refresh_context(now_coroutine[i]);
-        /* printf("i2:%d\n",i);
-        printf("now_main_co_id :%d\n",now_main_co_id);
-        printf("now_id %d,now_thread:%d\n",cur -> id,context[cur->id]->thread);
-        printf("cur -> thread :%d\n",cur -> thread); */
         pthread_mutex_unlock(&mutex);
         res = setjmp(set_coroutine -> context);
         refresh_main_context(set_coroutine);
     } else {
-        //pthread_mutex_lock(&mutex);
         set_coroutine -> thread = i;
         set_coroutine -> id = now_coroutine[i] -> id;
         set_coroutine -> main_or_not = 0;
@@ -191,17 +169,10 @@ int co_start(int (*routine)(void)){
         cur -> thread = i;
         now_coroutine[i] = cur;
         refresh_context(now_coroutine[i]);
-        /* printf("i3:%d\n",i);
-        printf("now_main_co_id :%d\n",now_main_co_id);
-        printf("now_id %d,now_thread:%d\n",cur -> id,context[cur->id]->thread);
-        printf("cur -> thread :%d\n",cur -> thread); */
         pthread_mutex_unlock(&mutex);
         res = setjmp(set_coroutine -> context);
         refresh_context(set_coroutine);
     }
-    /* debug_now_coroutine();
-    printf("co_start??\n");
-    printf("res = %d??\n",res); */
     if (res == 0){
         asm volatile( 
             "movq %0, %%rsp;"
@@ -212,9 +183,6 @@ int co_start(int (*routine)(void)){
             : "memory"
         );
     }
-    /* debug_now_coroutine();
-    printf("co_start??\n");
-    printf("res = %d??\n",res); */
     if (main_or_not){
         for (i = 0;i < now_main_co_id;i++){
             if (main_context_thread[i] == pthread_self()) break;
