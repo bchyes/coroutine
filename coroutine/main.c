@@ -53,6 +53,8 @@ int test_getid(void){
 _Atomic int total_coroutine_count = 0;
 
 int test_multithread_coroutine_inner() {
+    printf("Running inner: %d, thread: %ld\n", co_getid(), pthread_self());
+    debug_now_coroutine();
     total_coroutine_count++;
     return 1;
 }
@@ -69,7 +71,17 @@ int test_multithread_coroutine() {
         co_yield();
         //printf("come to this area multi2\n");
         if (i > 1) {
+            if (co_status(coroutine[i - 1]) != FINISHED) {
+                debug();
+                printf("coroutine :%lld\n",coroutine[i - 1]);
+                debug_spc(coroutine[i - 1]);
+            }
             co_wait(coroutine[i - 1]);
+            if (co_status(coroutine[i - 1]) != FINISHED) {
+                debug();
+                printf("coroutine :%lld\n",coroutine[i - 1]);
+                debug_spc(coroutine[i - 1]);
+            }
             assert(co_status(coroutine[i - 1]) == FINISHED);
         }
         //printf("come to this area multi3\n");
@@ -101,7 +113,7 @@ void* test_multithread_thread(void *ptr) {
 }
 
 int test_multithread() {
-    const int CNT = 1;
+    const int CNT = 5;
     pthread_t threads[CNT];
     total_coroutine_count = 0;
     int ret;
@@ -111,7 +123,9 @@ int test_multithread() {
     for (int i = 0; i < CNT; ++i) {
         pthread_join(threads[i], NULL);
     }
-    assert(total_coroutine_count == 200);
+    debug();
+    printf("\n total_count :%d\n",total_coroutine_count);
+    assert(total_coroutine_count == 1000);
     return 0;
 }
 
@@ -171,7 +185,8 @@ int main(){
     printf("Main: test getid finished.\n");
     void *ptr;
     test_multithread();
-    test_multithread_timer();
+    //debug();
+    //test_multithread_timer();
     printf("Finish running.\n");
     return 0;
 }
