@@ -31,5 +31,10 @@ void co_yield();
 void co_waitall();
 void co_wait(int cid);
 int co_status(int cid);
+void debug();
+void debug_spc(int i);
+void debug_context();
+void debug_now_coroutine();
+void debug_status();
 
 #endif
