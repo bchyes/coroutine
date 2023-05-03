@@ -54,7 +54,7 @@ _Atomic int total_coroutine_count = 0;
 
 int test_multithread_coroutine_inner() {
     printf("Running inner: %d, thread: %ld\n", co_getid(), pthread_self());
-    debug_now_coroutine();
+    //debug_now_coroutine();
     total_coroutine_count++;
     return 1;
 }
@@ -71,17 +71,17 @@ int test_multithread_coroutine() {
         co_yield();
         //printf("come to this area multi2\n");
         if (i > 1) {
-            if (co_status(coroutine[i - 1]) != FINISHED) {
+            /* if (co_status(coroutine[i - 1]) != FINISHED) {
                 debug();
                 printf("coroutine :%lld\n",coroutine[i - 1]);
                 debug_spc(coroutine[i - 1]);
-            }
+            } */
             co_wait(coroutine[i - 1]);
-            if (co_status(coroutine[i - 1]) != FINISHED) {
+            /* if (co_status(coroutine[i - 1]) != FINISHED) {
                 debug();
                 printf("coroutine :%lld\n",coroutine[i - 1]);
                 debug_spc(coroutine[i - 1]);
-            }
+            } */
             assert(co_status(coroutine[i - 1]) == FINISHED);
         }
         //printf("come to this area multi3\n");
@@ -106,14 +106,16 @@ void* test_multithread_thread(void *ptr) {
         coroutine[i] = co_start(test_multithread_coroutine);
     }
     for (int i = 0; i < CNT; ++i) {
+        //printf("Coroutine finished? :%lld\n",coroutine[i]);
         assert(co_getret(coroutine[i]) == 1);
+        //printf("Coroutine getret :%lld\n",coroutine[i]);
         assert(co_status(coroutine[i]) == FINISHED);
     }
     printf("Thread finished: %ld\n", pthread_self());
 }
 
 int test_multithread() {
-    const int CNT = 5;
+    const int CNT = 50;
     pthread_t threads[CNT];
     total_coroutine_count = 0;
     int ret;
@@ -123,9 +125,9 @@ int test_multithread() {
     for (int i = 0; i < CNT; ++i) {
         pthread_join(threads[i], NULL);
     }
-    debug();
+    //debug();
     printf("\n total_count :%d\n",total_coroutine_count);
-    assert(total_coroutine_count == 1000);
+    assert(total_coroutine_count == 10000);
     return 0;
 }
 
@@ -147,9 +149,9 @@ int main(){
         if(coroutine[i] != i) fail("Coroutine ID not equal", __func__, __LINE__);
     }
     // test wait: not necessary if 1-N, think why
-    printf("come to this area1\n");
+    //printf("come to this area1\n");
     co_waitall();
-    printf("come to this area2\n");
+    //printf("come to this area2\n");
     // test get return value
     for(int i = 0; i < 10; ++i) {
         if(co_getret(coroutine[i]) != 100) fail("Coroutine return value failed", __func__, __LINE__);
